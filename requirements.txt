@@ -1,0 +1,6 @@
+# Colab already provides torch, numpy, scipy, pandas, opencv, matplotlib, scikit-learn.
+nibabel>=5.2
+SimpleITK>=2.3
+segmentation-models-pytorch==0.5.0
+nnunetv2==2.8.1
+python-docx>=1.1
