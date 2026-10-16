@@ -197,6 +197,7 @@ def _find_alias(paths, cfg_hash, seed, fold):
 def run_arm(exp, arm, cfg: RunConfig, paths, index, cache, split, folds=range(SP.N_FOLDS), seeds=None,
             quick_mode=False, num_workers=2, log=print):
     from .train import finish_run, train_run
+    keep = keep_weights_for(cfg)            # decided on the registered config, not the quick one
     if quick_mode:
         cfg = override(quick(cfg), encoder_weights=None)
     led = Ledger(paths.ledger, exp)
@@ -225,7 +226,7 @@ def run_arm(exp, arm, cfg: RunConfig, paths, index, cache, split, folds=range(SP
             ck = paths.ckpt / exp / f"{arm}__s{seed}_f{k}"
             model, hist, info, z = train_run(cfg, index, cache, tr, va, seed, ck, num_workers, log)
             finish_run(model, cfg, hist, info, z, cache, va, led, arm, seed, k, paths,
-                       keep_weights=keep_weights_for(cfg) and not quick_mode, log=log)
+                       keep_weights=keep, log=log)
             del model
             try:
                 import torch

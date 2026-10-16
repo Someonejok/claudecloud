@@ -353,7 +353,7 @@ def train_run(cfg: RunConfig, index: pd.DataFrame, cache, train_cases, val_cases
                 scaler.unscale_(opt)
                 torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.grad_clip)
             scaler.step(opt); scaler.update()
-            run += float(loss); nb += 1
+            run += float(loss.detach()); nb += 1
         # validation curve (figures only, never used for selection)
         model.eval()
         vl, vn, tp, fp, fn = 0.0, 0, 0.0, 0.0, 0.0
