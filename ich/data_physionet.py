@@ -99,3 +99,36 @@ def demographics(root: Path) -> pd.DataFrame:
     raw = pd.read_csv(p)
     raw.columns = [str(c).strip() for c in raw.columns]
     return raw
+
+
+def original_flip_axis(root: Path, cache, case: str) -> dict:
+    """Which display axis the ORIGINAL pipeline's image columns ran along.
+
+    The original notebook saved nifti[:, :, k] straight to PNG, so albumentations'
+    HorizontalFlip mirrored that array's second axis. We find the dihedral transform
+    that maps the raw slice onto our display slice and read off where those columns
+    went: display columns = left-right, display rows = anterior-posterior."""
+    root = find_root(root)
+    pid = int(case[2:])
+    img = nib.load(str(next((root / "ct_scans").glob(f"{pid:03d}.nii*"))))
+    meta = cache.meta(case)
+    k = len(meta["z_index_map"]) // 2
+    raw = np.clip(img.get_fdata(dtype=np.float32)[:, :, meta["z_index_map"][k]], -100, 200)
+    disp = np.clip(np.asarray(cache.hu(case)[k], np.float32), -100, 200)
+    best, score = None, -2.0
+    for transpose in (False, True):
+        a = raw.T if transpose else raw
+        for fr in (False, True):
+            for fc in (False, True):
+                b = a[::-1] if fr else a
+                b = b[:, ::-1] if fc else b
+                if b.shape != disp.shape:
+                    continue
+                x, y = b - b.mean(), disp - disp.mean()
+                c = float((x * y).sum() / (np.sqrt((x * x).sum() * (y * y).sum()) + 1e-6))
+                if c > score:
+                    best, score = transpose, c
+    # raw columns end up on display rows exactly when the raw slice had to be transposed
+    axis = "anterior-posterior" if best else "left-right"
+    return {"case": case, "match_correlation": score, "original_horizontal_flip_mirrored": axis,
+            "paper_extreme_spec": "paper_extreme" if best else "paper_extreme_lr"}

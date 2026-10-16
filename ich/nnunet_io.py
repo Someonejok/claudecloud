@@ -55,6 +55,14 @@ class nnUNetTrainer_ICHcalib(nnUNetTrainer):
 '''
 
 
+def _device_args() -> tuple:
+    try:
+        import torch
+        return () if torch.cuda.is_available() else ("-device", "cpu")
+    except ImportError:
+        return ("-device", "cpu")
+
+
 def env(paths, local_preprocessed: Path) -> dict:
     e = dict(os.environ)
     e["nnUNet_raw"] = str(paths.nnunet / "raw")
@@ -167,7 +175,7 @@ def calibrate(paths, local_pre, did, name) -> float:
     d = fold_dir(paths, did, name, 0, CALIB_TRAINER)
     e = env(paths, local_pre)
     t0 = time.time()
-    _run(["nnUNetv2_train", str(did), CONFIG, "0", "-tr", CALIB_TRAINER], e)
+    _run(["nnUNetv2_train", str(did), CONFIG, "0", "-tr", CALIB_TRAINER, *_device_args()], e)
     secs = None
     logs = sorted(d.glob("training_log_*.txt"))
     if logs:
@@ -189,6 +197,8 @@ def train_fold(paths, local_pre, did, name, fold, epochs: int, extra_env: dict |
     e["ICH_NNUNET_EPOCHS"] = str(int(epochs))
     e.update(extra_env or {})
     cmd = ["nnUNetv2_train", str(did), CONFIG, str(fold), "-tr", TRAINER, "--npz", *extra_args]
+    if "-device" not in cmd:
+        cmd += list(_device_args())
     if (d / "checkpoint_latest.pth").exists():
         cmd.append("--c")
         print(f"  fold {fold}: resuming from checkpoint_latest.pth")
@@ -206,7 +216,8 @@ def predict(paths, local_pre, did, name, in_dir: Path, folds=(0, 1, 2, 3, 4), ep
     e = env(paths, local_pre)
     e["ICH_NNUNET_EPOCHS"] = str(int(epochs))
     _run(["nnUNetv2_predict", "-i", str(in_dir), "-o", str(out), "-d", str(did), "-c", CONFIG,
-          "-tr", TRAINER, "-f", *map(str, folds), "--save_probabilities", *extra_args], e)
+          "-tr", TRAINER, "-f", *map(str, folds), "--save_probabilities", *extra_args,
+          *([] if "-device" in extra_args else _device_args())], e)
     return out
 
 

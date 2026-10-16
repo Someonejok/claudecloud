@@ -41,8 +41,9 @@ def parse(spec: str) -> dict:
         return {"flip_lr": 0.0, "families": {}}
     if spec == "paper_moderate":
         return {"flip_lr": 0.0, "families": {}, "composite": "paper_moderate"}
-    if spec == "paper_extreme":
-        return {"flip_lr": 0.0, "families": {}, "composite": "paper_extreme"}
+    if spec in ("paper_extreme", "paper_extreme_lr"):
+        return {"flip_lr": 0.0, "families": {}, "composite": "paper_extreme",
+                "paper_flip": "lr" if spec.endswith("_lr") else "ap"}
     parts = spec.split("+")
     if parts[0] != "base":
         raise ValueError(f"augmentation spec must start with 'base', 'none' or 'paper_*': {spec}")
@@ -100,7 +101,8 @@ class Augmenter:
             # The original code chained every op at p = 1.0, including the flip. Its PNGs
             # were saved without reorientation, so "HorizontalFlip" mirrored the
             # anterior-posterior axis (see the orientation audit in the notebook).
-            flip_ap = True
+            flip_ap = self.p.get("paper_flip", "ap") == "ap"
+            flip_lr = not flip_ap
             rot = rng.uniform(-10, 10)
             sc = rng.uniform(-0.05, 0.05)
             tx, ty = rng.uniform(-0.05, 0.05, 2)

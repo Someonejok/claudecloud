@@ -35,6 +35,10 @@ PAPER = override(BASE, arch="paper_unet", encoder="none", encoder_weights=None,
                  aug="paper_moderate", grad_clip=0.0)
 
 MAGNITUDES = (0.5, 1.0, 2.0, 4.0)
+# Which anatomical axis the original code's HorizontalFlip mirrored. The original saved
+# raw nifti[:, :, k] arrays as PNGs, so its "horizontal" axis depends on the NIfTI
+# layout; the notebook's audit measures it and sets this before pre-registration.
+PAPER_EXTREME_SPEC = "paper_extreme"          # "paper_extreme" (A-P) | "paper_extreme_lr"
 FAMILIES = ("affine", "elastic", "intensity", "noise")
 
 
@@ -55,7 +59,7 @@ def arms() -> dict[str, dict]:
                       ("three_window", "brain_40_80", "brain_40_120", "brain_30_120", "zscore")}
     e4 = {"none": override(BASE, aug="none"), "base": BASE,
           "paper_moderate": override(BASE, aug="paper_moderate"),
-          "paper_extreme": override(BASE, aug="paper_extreme")}
+          "paper_extreme": override(BASE, aug=PAPER_EXTREME_SPEC)}
     for f in FAMILIES:
         for m in MAGNITUDES:
             e4[f"{f}@{m:g}"] = override(BASE, aug=f"base+{f}@{m:g}")
@@ -235,12 +239,13 @@ def run_arm(exp, arm, cfg: RunConfig, paths, index, cache, split, folds=range(SP
                 pass
 
 
-def run_experiment(exp, paths, index, cache, split, only=None, quick_mode=False, num_workers=2, log=print):
+def run_experiment(exp, paths, index, cache, split, only=None, quick_mode=False, num_workers=2, log=print,
+                   seeds=None):
     for arm, cfg in arms()[exp].items():
         if only and arm not in only:
             continue
         run_arm(exp, arm, cfg, paths, index, cache, split, quick_mode=quick_mode,
-                num_workers=num_workers, log=log)
+                num_workers=num_workers, log=log, seeds=seeds)
 
 
 def budget(paths) -> pd.DataFrame:

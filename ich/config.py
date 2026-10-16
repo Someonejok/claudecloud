@@ -35,8 +35,8 @@ class Paths:
     local: Path
 
     @property
-    def cache(self) -> Path:          # persistent copy of the HU cache
-        return self.root / "cache"
+    def cache(self) -> Path:          # persistent copy of the HU cache (shared by quick mode)
+        return Path(os.environ["ICH_CACHE"]) if os.environ.get("ICH_CACHE") else self.root / "cache"
 
     @property
     def local_cache(self) -> Path:    # fast working copy

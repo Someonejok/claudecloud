@@ -108,3 +108,13 @@ def test_parse_and_morphology(built):
     e4 = morphology_effect("base+intensity@4", samples, 230.0, 96, n_draws=6)
     assert abs(e0["area_ratio_mean"] - 1) < 0.05
     assert e4["lesion_hu_shift_mean_abs"] > e0["lesion_hu_shift_mean_abs"]
+
+
+def test_original_flip_axis_detected(built, synth):
+    """The phantom NIfTIs are stored X (left-right) first, so the original pipeline's
+    PNG columns ran along Y: its HorizontalFlip mirrored the anterior-posterior axis."""
+    from ich.data_physionet import original_flip_axis
+    r = original_flip_axis(synth["physionet"], built["cache"], "pn049")
+    assert r["match_correlation"] > 0.99
+    assert r["original_horizontal_flip_mirrored"] == "anterior-posterior"
+    assert r["paper_extreme_spec"] == "paper_extreme"
