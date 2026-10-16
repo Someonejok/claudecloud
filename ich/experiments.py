@@ -144,13 +144,18 @@ def write_or_check_prereg(path: Path, nnunet_epochs: dict | None = None) -> dict
                 changed.append(f"{e}/{a}")
     if changed:
         raise RuntimeError(f"arms changed since pre-registration: {changed}. Use amend() to record why.")
-    if nnunet_epochs and old["nnunet"].get("epochs") != nnunet_epochs:
-        if isinstance(old["nnunet"].get("epochs"), dict):
-            raise RuntimeError(f"nnU-Net epochs already registered as {old['nnunet']['epochs']}")
-        old["nnunet"]["epochs"] = nnunet_epochs
-        old["amendments"].append({"at": time.strftime("%Y-%m-%d %H:%M:%S"),
-                                  "what": f"nnU-Net epochs fixed by calibration: {nnunet_epochs}"})
-        path.write_text(json.dumps(old, indent=1))
+    if nnunet_epochs:
+        reg = old["nnunet"].get("epochs")
+        reg = reg if isinstance(reg, dict) else {}
+        clash = {k: (reg[k], v) for k, v in nnunet_epochs.items() if k in reg and reg[k] != v}
+        if clash:
+            raise RuntimeError(f"nnU-Net epochs already registered differently: {clash}")
+        new = {k: v for k, v in nnunet_epochs.items() if k not in reg}
+        if new:
+            old["nnunet"]["epochs"] = {**reg, **new}
+            old["amendments"].append({"at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                                      "what": f"nnU-Net epochs fixed by calibration before training: {new}"})
+            path.write_text(json.dumps(old, indent=1))
     return old
 
 
@@ -257,8 +262,9 @@ def budget(paths) -> pd.DataFrame:
         rows = []
         for p in paths.ledger.glob("*/*.json"):
             r = json.loads(p.read_text())
-            if not r.get("alias_of"):
-                rows.append((r["config"]["image_size"], r["info"].get("train_seconds", np.nan) / 60))
+            size = (r.get("config") or {}).get("image_size")      # nnU-Net records have none
+            if size is not None and not r.get("alias_of"):
+                rows.append((size, (r.get("info") or {}).get("train_seconds", np.nan) / 60))
         if rows:
             mins = pd.DataFrame(rows, columns=["size", "min"]).groupby("size")["min"].median().to_dict()
     out = []

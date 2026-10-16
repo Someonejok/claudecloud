@@ -37,6 +37,8 @@ def download(dest_dir: Path) -> Path:
         return z
     for url in MIRRORS:
         print("trying", url)
+        if z.exists() and z.stat().st_size < 10_000_000:
+            z.unlink()               # an error page from a failed mirror, not a partial zip
         r = subprocess.run(["wget", "-q", "-c", "-O", str(z), url])
         if r.returncode == 0 and z.exists() and z.stat().st_size > 10_000_000:
             return z

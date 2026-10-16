@@ -32,9 +32,10 @@ def _check_format(path):
 
 def _first_order(txt, word):
     seen = []
-    for n in re.findall(rf"\b{word} (\d+)\b", txt):
-        if int(n) not in seen:
-            seen.append(int(n))
+    for m in re.finditer(rf"\b{word}s? (\d+)(?: and (\d+))?\b", txt):
+        for n in m.groups():
+            if n is not None and int(n) not in seen:
+                seen.append(int(n))
     return seen
 
 

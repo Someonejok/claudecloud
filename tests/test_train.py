@@ -91,8 +91,11 @@ def test_prereg_detects_changes(tmp_path, monkeypatch):
     p = tmp_path / "prereg.json"
     EX.write_or_check_prereg(p)
     EX.write_or_check_prereg(p)                     # unchanged: fine
-    reg = EX.write_or_check_prereg(p, {"P+B": 120})
-    assert json.loads(p.read_text())["nnunet"]["epochs"] == {"P+B": 120}
+    EX.write_or_check_prereg(p, {"P+B": 120})
+    EX.write_or_check_prereg(p, {"P+B": 120, "P": 150})          # adding the second model is fine
+    assert json.loads(p.read_text())["nnunet"]["epochs"] == {"P+B": 120, "P": 150}
+    with pytest.raises(RuntimeError):
+        EX.write_or_check_prereg(p, {"P+B": 99})                  # changing a registered one is not
     orig = EX.arms
 
     def changed():
@@ -104,7 +107,7 @@ def test_prereg_detects_changes(tmp_path, monkeypatch):
         EX.write_or_check_prereg(p)
     EX.amend(p, "test amendment")
     EX.write_or_check_prereg(p)
-    assert len(json.loads(p.read_text())["amendments"]) == 2
+    assert len(json.loads(p.read_text())["amendments"]) == 3
 
 
 def test_arm_inventory():
