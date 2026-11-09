@@ -1,5 +1,15 @@
 # ICH v3: traumatic intracranial haemorrhage segmentation, rebuilt to survive review
 
+> **Read before submitting anything: NHSJS AI policy.** NHSJS
+> ([AI Usage Policy](https://nhsjs.com/?p=50884), checked November 2026) allows AI for writing and
+> debugging code, running or interpreting analyses, and searching literature. It does
+> **not** allow AI to draft, paraphrase, expand or rewrite prose, even if you edit the output afterwards. All AI use must be
+> disclosed in a statement at the end of the manuscript. The prose in
+> `ich/manuscript.py` and in `docs/preview/TEMPLATE_*.docx` was drafted by an AI assistant.
+> Use those files only as a checklist and a table and figure generator. The authors must write
+> the manuscript text and the response letter themselves. The tables, figures, numbers and
+> reference list can be used as they are.
+
 Code, Colab notebook and document builders for the revision of *Deep Learning Models for
 Intracranial Haemorrhage Detection and Masking* (Choudhary & Poore). Every reviewer point is
 addressed by an experiment, a table or a rewrite; the mapping is in the generated
@@ -72,11 +82,47 @@ docs/           literature.md: citation audit and verified reference list
 
 Run the tests with `pip install -r requirements.txt torch pytest && pytest tests/`.
 
+## Extensions (November 2026, `ich/extensions.py`, untested)
+
+Written without being run, at the author's request. Nothing in the pipeline imports the
+module, so registered arms and hashes are unchanged. Run the tests and a QUICK pass first.
+Arms X1 and X5 were not in the pre-registration: either amend it before running
+(`experiments.amend`) or report them as exploratory.
+
+| id | question | cost | needs |
+|---|---|---|---|
+| X1 `leakage_demo` | How much did the original slice-level split inflate the result? Same recipe, scored on held-out slices vs unseen scans | 3 runs of the paper recipe (~0.3 h) | splits, index, cache |
+| X2 `affinity_diversity` | Measures, instead of asserting, how far each augmentation policy moves data off-distribution (Gontijo-Lopes 2021). Replaces the manifold-hypothesis argument | inference only | E4 `base` weights + E4 histories |
+| X3 `volumetry` | Volume agreement (ICC, Bland-Altman, agreement at the 30 mL EDH threshold) | none | any per-scan table |
+| X4 `fold_uncertainty` | Does disagreement between the 5 fold models flag failed scans? Voxel calibration | inference only | kept fold weights |
+| X5 `run_scaling` | Learning curve over 25/50/75/100 % of scans, + BHSD: is data the constraint? | 25 runs (~2 h) | splits |
+| X6 `augmentation_shift` | Does strong augmentation that hurts in-domain help on external BHSD? | none | `test_aug_*.json` |
+
+Notebook usage, after Section 8 (test sets opened):
+
+```python
+from ich import extensions as X
+X.leakage_demo(paths, index, cache, split)             # X1
+X.affinity_diversity(paths, index, cache, split)       # X2
+S = pd.read_csv(paths.tables / "test_nnUNet_PplusB/physionet_recipe_scans.csv")
+X.volumetry(S); X.fig_bland_altman(S, paths.figures / "fig_bland_altman.png")   # X3
+X.fold_uncertainty(paths, cache, split)                # X4
+X.run_scaling(paths, index, cache, split)              # X5
+X.augmentation_shift(paths, cache, split)              # X6
+```
+
 ## Things to check by hand before resubmitting
 
+- **Was the 15-scan PhysioNet test set ever scored in the earlier ICH_MAXPERF notebook?**
+  `splits.py` deliberately reuses the same 15 scans. If any earlier run reported numbers on
+  them, they are not untouched. Say so in the methods, or draw a new test set before training.
+- **Commit `preregistration.json` to git before the first real run.** The commit
+  timestamp is what makes "fixed before training" checkable. Call it an analysis plan
+  fixed in advance, not a formal pre-registration, since it is not on a registry.
+- **Frey & Hazenfield 2018 is real.** Restore it (see `docs/literature.md`, row 11).
+
 - BHSD licence (sources disagree: MIT vs CC BY-NC); both allow academic use, cite Wu et al. 2023.
-- The original subtype reference "Frey & Hazenfield, Semin Ultrasound CT MRI 2018" could not
-  be verified and was removed; if you have the source, check it.
-- Full author list for Inkeaw et al. 2022 (Comput Biol Med 146:105530) from the publisher page.
+- Full author list for Inkeaw et al. 2022 is now in `docs/literature.md` section 3.
+- O'Neill et al. 2021: copy the full author list from the RSNA page (the Crossref record would not load).
 - The INSTANCE overview is an arXiv preprint; replace if a peer-reviewed version exists.
 - Page count after the real tables are filled (limit 20 pages single-spaced).
